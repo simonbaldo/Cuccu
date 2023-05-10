@@ -39,6 +39,7 @@ Pulsante p1(7, 3);
 //definizine servo
 #define servoPin 9
 Servo sc;
+bool openBird=false;
 
 //RTC DS1307
 #define DS1307_I2C_ADDRESS 0x68 //address of DS1307 module
@@ -62,6 +63,8 @@ bool modImpo=false;
 uint8_t menuImpo=0;
 byte ora;
 byte min;
+byte oraImpo;
+byte minImpo;
 byte brt=0;
 
 #define pinCLK 13
@@ -71,7 +74,7 @@ byte brt=0;
 #define ELEMENTS 4
 LedControl lc = LedControl(pinDIN, pinCLK, pinCS, ELEMENTS);  
 
-byte alpha[21][8] = {
+byte alpha[23][8] = {
 { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },   // U+0020 (space) 0
 { 0x3E, 0x63, 0x73, 0x7B, 0x6F, 0x67, 0x3E, 0x00 },   // U+0030 (0)     1
 { 0x0C, 0x0E, 0x0C, 0x0C, 0x0C, 0x0C, 0x3F, 0x00 },   // U+0031 (1)     2
@@ -92,7 +95,9 @@ byte alpha[21][8] = {
 { 0x1C, 0x36, 0x63, 0x63, 0x63, 0x36, 0x1C, 0x00 },   // U+004F (O)    17
 { 0x7F, 0x46, 0x16, 0x1E, 0x16, 0x06, 0x0F, 0x00 },   // U+0046 (F)    18
 { 0x33, 0x33, 0x33, 0x33, 0x33, 0x1E, 0x0C, 0x00 },   // U+0056 (V)    19
-{ 0x1E, 0x33, 0x07, 0x0E, 0x38, 0x33, 0x1E, 0x00 }    // U+0053 (S)    20
+{ 0x1E, 0x33, 0x07, 0x0E, 0x38, 0x33, 0x1E, 0x00 },   // U+0053 (S)    20
+{ 0x7F, 0x46, 0x16, 0x1E, 0x16, 0x46, 0x7F, 0x00 },   // U+0045 (E)    21
+{ 0x3F, 0x66, 0x66, 0x3E, 0x06, 0x06, 0x0F, 0x00 }    // U+0050 (P)    22
 };
 
 /*
@@ -394,6 +399,23 @@ void WriteImpo() {
           DrawSymbol(2, 0,  1); //Space
           DrawSymbol(3, 20, 1); //S
     }
+  else
+    //apertura/chiusura Cucu
+    if (menuImpo==6) {
+      if (openBird) {  
+          DrawSymbol(0, 16, 0); //N
+          DrawSymbol(1, 21, 0); //E
+          DrawSymbol(2, 22, 0); //P
+          DrawSymbol(3, 17, 0); //O
+      }
+      else {
+          DrawSymbol(0, 20, 0); //S
+          DrawSymbol(1, 17, 0); //O 
+          DrawSymbol(2, 14, 0); //L
+          DrawSymbol(3, 15, 0); //C
+      }
+
+    }  
 
 }
 
@@ -435,6 +457,8 @@ void testPressedButton() {
           menuImpo=0;
           ora=hour;
           min=minute;
+          oraImpo=ora;
+          minImpo=min;
         }
       return;
       } 
@@ -445,6 +469,7 @@ void testPressedButton() {
   //menuImpo = 3 - stato cucu (attivo/disattivo)
   //menuImpo = 4 - volume da 0 a 30
   //menuImpo = 5 - Tipo suono cucu
+  //menuImpo = 6 - Apri/chiudi cucu
 
   if  (modImpo==true) {
     if (pressP1==1) {
@@ -483,18 +508,37 @@ void testPressedButton() {
               suono=1;
            mp3.play(suono);   
         }
+        else
+        if (menuImpo==6) {
+          if (openBird) {
+            openBird=false;
+            sc.write(0);
+          }
+          else {
+            openBird=true;
+            sc.write(180);
+          }
+
+        }
               
     }
     else
     if (pressP2==1) {
         menuImpo++;
-        if (menuImpo>5) {
+        if (menuImpo>6) {
           modImpo=false;
-          SetRtc(second, min, ora, dayOfWeek, dayOfMonth, month, year);	//sec, min, hour, dayOfWeek, dayOfMonth, month, year
+          //se ho cambiato ora o minuti quando sono entrato in impostazioni aggiorno
+          if (ora!=oraImpo || min!=minImpo)
+             SetRtc(second, min, ora, dayOfWeek, dayOfMonth, month, year);	//sec, min, hour, dayOfWeek, dayOfMonth, month, year
+
           EEPROM.write(0, statoCucu);
           EEPROM.write(1,brt);
           EEPROM.write(2,suono);
           EEPROM.write(3,volume);
+
+          if (openBird)  
+             sc.write(0);
+          openBird=false;             
 
         }
     }

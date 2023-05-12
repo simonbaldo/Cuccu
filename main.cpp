@@ -3,12 +3,13 @@ D11  matrix display, pin DIN
 D13  matrix display, pin CLK
 D10  matrix display, pin CS
 D09  Servo control
-A04  RTC module, pin SDA // In arduino uno SDA ed SCL sono internamente collegati ad A4 ed A5
-A05  RTC module, pin SCL //
 D02  Software serial TX
 D03  Software serial RX
 D07  Pulsante impostazioni + variabile Pull Down
 D12  Pulsante impostazioni cambio menu Pull Down
+A04  RTC module, pin SDA // In arduino uno SDA ed SCL sono internamente collegati ad A4 ed A5
+A05  RTC module, pin SCL //
+A02  Pin per lettura fototransistor
 */
 
 #include <Wire.h>
@@ -30,7 +31,9 @@ byte volume;
 
 //definizione pin per fotodiodo
 const byte pinLuce=A2;
+const byte pinLuce2=A1;
 uint8_t iLuce=0;
+uint8_t iLuce2=0;
 
 //definizione pulsante
 Pulsante p2(12, 3);
@@ -568,8 +571,9 @@ void testCucu() {
       if (minute==0 && hour>=7 && hour<=21) {
         //controllo luminosità
         iLuce = analogRead(pinLuce);
+        iLuce2 = analogRead(pinLuce2);
         delay(5);        
-        if (!startCucu && iLuce>30) { 
+        if (!startCucu && iLuce>30 && iLuce2 > 30) { 
           if (statoCucu==true) {
              startCucu=true;
              endCucu=false;

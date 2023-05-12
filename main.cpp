@@ -573,7 +573,8 @@ void testCucu() {
         iLuce = analogRead(pinLuce);
         iLuce2 = analogRead(pinLuce2);
         delay(5);        
-        if (!startCucu && iLuce>30 && iLuce2 > 30) { 
+        //se per entrambi i fotodiodi non è buio (buoi ha un valore <30 ) alloro posso far partire il cucu 
+        if (!startCucu && !(iLuce<=30 && iLuce2 <= 30)) { 
           if (statoCucu==true) {
              startCucu=true;
              endCucu=false;

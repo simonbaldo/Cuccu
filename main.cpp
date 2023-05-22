@@ -3,13 +3,14 @@ D11  matrix display, pin DIN
 D13  matrix display, pin CLK
 D10  matrix display, pin CS
 D09  Servo control
-D02  Software serial TX
-D03  Software serial RX
+D02  Software serial TX per MP3 player
+D03  Software serial RX per MP£ player
 D07  Pulsante impostazioni + variabile Pull Down
 D12  Pulsante impostazioni cambio menu Pull Down
 A04  RTC module, pin SDA // In arduino uno SDA ed SCL sono internamente collegati ad A4 ed A5
 A05  RTC module, pin SCL //
-A02  Pin per lettura fototransistor
+A01  Pin per lettura fototransistor con pull down di 10k
+A02  Pin per lettura fototransistor con pull down di 10k
 */
 
 #include <Wire.h>
@@ -28,6 +29,7 @@ SoftwareSerial ss(3, 2); //RX, TX
 DFRobotDFPlayerMini mp3;
 byte suono;
 byte volume;
+byte sogliaLuce;
 
 //definizione pin per fotodiodo
 const byte pinLuce=A2;
@@ -419,6 +421,40 @@ void WriteImpo() {
       }
 
     }  
+  else
+    //visualizzazione valore del fotodioido
+    if (menuImpo==7) {
+          bool overflow=false;
+          iLuce=analogRead(pinLuce);
+          if (iLuce>100) {
+            iLuce=iLuce - 100;
+            overflow=true;
+          }
+          iLuce2=analogRead(pinLuce2);
+          if (iLuce2>100) {
+            iLuce2=iLuce2 - 100;
+            overflow=true;
+          }
+          delay(5);
+    	  	DrawSymbol(0, (iLuce2 % 10) + 1, 0);
+		      DrawSymbol(1, (iLuce2 / 10) + 1, 0);
+    	  	DrawSymbol(2, (iLuce % 10) + 1, 0);
+		      DrawSymbol(3, (iLuce / 10) + 1, 0);
+        	lc.setLed(2, 1, 7, overflow);  //addr, row, column
+	        lc.setLed(2, 2, 7, overflow);
+	        lc.setLed(2, 3, 7, overflow);
+	        lc.setLed(2, 4, 7, overflow);
+	        lc.setLed(2, 5, 7, overflow);
+	        lc.setLed(2, 6, 7, overflow);
+    }  
+    else
+    //Impostazione soglia luce da 0 (sempre)  a 20. Impostazione a 4
+    if (menuImpo==8) {
+    	  	DrawSymbol(0, (sogliaLuce % 10) + 1, 0);
+		      DrawSymbol(1, (sogliaLuce / 10) + 1, 0);
+          DrawSymbol(2, 14,  1); //Space
+          DrawSymbol(3, 20, 1); //S
+    }
 
 }
 
@@ -523,12 +559,23 @@ void testPressedButton() {
           }
 
         }
+        else
+        if (menuImpo==7) {
+           iLuce = analogRead(pinLuce);
+           iLuce2 = analogRead(pinLuce2);
+        }
+        else
+        if (menuImpo==8) {
+           sogliaLuce++;
+           if (sogliaLuce>20)
+               sogliaLuce=0;
+        }
               
     }
     else
     if (pressP2==1) {
         menuImpo++;
-        if (menuImpo>6) {
+        if (menuImpo>8) {
           modImpo=false;
           //se ho cambiato ora o minuti quando sono entrato in impostazioni aggiorno
           if (ora!=oraImpo || min!=minImpo)
@@ -538,6 +585,7 @@ void testPressedButton() {
           EEPROM.write(1,brt);
           EEPROM.write(2,suono);
           EEPROM.write(3,volume);
+          EEPROM.write(4,sogliaLuce);
 
           if (openBird)  
              sc.write(0);
@@ -567,14 +615,22 @@ void closeCucu() {
 void testCucu() {
 
    if (!modImpo) {
+        //iLuce = analogRead(pinLuce);
+        //iLuce2 = analogRead(pinLuce2);
+
+        //Serial.print(iLuce);
+        //Serial.print('/');
+        //Serial.println(iLuce2);
 
       if (minute==0 && hour>=7 && hour<=21) {
         //controllo luminosità
         iLuce = analogRead(pinLuce);
         iLuce2 = analogRead(pinLuce2);
         delay(5);        
+        int mediaLuce= (int)((iLuce + iLuce2) / 2);
         //se per entrambi i fotodiodi non è buio (buio ha un valore <30 ) alloro posso far partire il cucu 
-        if (!startCucu && !(iLuce<=30 && iLuce2 <= 30)) { 
+        //if (!startCucu && !(iLuce<=2 && iLuce2 <= 2 )) { 
+          if (!startCucu && (mediaLuce > sogliaLuce )) { 
           if (statoCucu==true) {
              startCucu=true;
              endCucu=false;
@@ -633,8 +689,8 @@ void setup() {
   //impostazioni di "fabbrica"
   //statoCucu=true;
   //brt=0;
-  //suono=1;
-  //volume=20;
+  //suono=7;
+  //volume=26;
 
   //EEPROM.write(0, statoCucu);
   //EEPROM.write(1,brt);
@@ -646,7 +702,8 @@ void setup() {
   brt=EEPROM.read(1);
   suono=EEPROM.read(2);
   volume=EEPROM.read(3);
-  
+  sogliaLuce=EEPROM.read(4);
+
   //begin software serial
   ss.begin(9600);
 
@@ -686,7 +743,7 @@ void setup() {
   //imposto callback per scatto del cucu ogni 2 secondi
   tcucu.cback(playCucu);
 
-//  SetRtc(0, 32, 19, 3, 9, 5, 23);	//sec, min, hour, dayOfWeek (sun,mon, tue,...), dayOfMonth, month, year
+  //SetRtc(0, 42, 8, 6, 19, 5, 23);	//sec, min, hour, dayOfWeek (sun,mon, tue,...), dayOfMonth, month, year
 }
 
 //main loop
@@ -702,6 +759,6 @@ void loop() {
 //verifica pressione dei pulsanti per impostazione ora
   testPressedButton();	
 	
-//verifica se azionameto cucu
+//verifica se azionamento cucu
   testCucu();
 }
